@@ -256,7 +256,7 @@ class TikTokApi:
         cookies = re.split("; |, ", h.headers["Set-Cookie"])
 
         for item in cookies:
-            if any(key in cookie for key in ["ttwid", "tt_csrf_token"]):
+            if any(key in item for key in ["ttwid", "tt_csrf_token"]):
                 key, value = item.split("=")
                 kwargs[key] = value
 
