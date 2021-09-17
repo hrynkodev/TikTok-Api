@@ -11,6 +11,7 @@ from playwright.sync_api import sync_playwright
 
 from .exceptions import *
 from .utilities import update_messager
+from .constants import TIKTOK_BASE_URL
 
 
 os.environ["no_proxy"] = "127.0.0.1,localhost"
@@ -246,14 +247,17 @@ class TikTokApi:
         url = "{}&{}".format(kwargs["url"], urlencode(query))
 
         h = requests.head(
-            url,
-            headers={"x-secsdk-csrf-version": "1.2.5", "x-secsdk-csrf-request": "1"},
+            TIKTOK_BASE_URL,
             proxies=self.__format_proxy(proxy),
             **self.requests_extra_kwargs,
         )
-        csrf_session_id = h.cookies["csrf_session_id"]
-        csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
-        kwargs["csrf_session_id"] = csrf_session_id
+
+        cookies = re.split("; |, ", h.headers["Set-Cookie"])
+
+        for item in cookies:
+            if any(key in cookie for key in ["ttwid", "tt_csrf_token"]):
+                key, value = item.split("=")
+                kwargs[key] = value
 
         r = requests.get(
             url,
@@ -272,7 +276,7 @@ class TikTokApi:
                 "sec-fetch-site": "same-site",
                 "sec-gpc": "1",
                 "user-agent": userAgent,
-                "x-secsdk-csrf-token": csrf_token,
+                "x-secsdk-csrf-token": kwargs.get("tt_csrf_token"),
             },
             cookies=self.get_cookies(**kwargs),
             proxies=self.__format_proxy(proxy),
@@ -325,10 +329,8 @@ class TikTokApi:
                 "tt_webid": device_id,
                 "tt_webid_v2": device_id,
                 "csrf_session_id": kwargs.get("csrf_session_id"),
-                "tt_csrf_token": "".join(
-                    random.choice(string.ascii_uppercase + string.ascii_lowercase)
-                    for i in range(16)
-                ),
+                "tt_csrf_token":  kwargs.get("tt_csrf_token"),
+                "ttwid": kwargs.get("ttwid"),
                 "s_v_web_id": verifyFp,
             }
         else:
@@ -336,10 +338,9 @@ class TikTokApi:
                 "tt_webid": device_id,
                 "tt_webid_v2": device_id,
                 "csrf_session_id": kwargs.get("csrf_session_id"),
-                "tt_csrf_token": "".join(
-                    random.choice(string.ascii_uppercase + string.ascii_lowercase)
-                    for i in range(16)
-                ),
+                "tt_csrf_token":  kwargs.get("tt_csrf_token"),
+                "ttwid": kwargs.get("ttwid"),
+                "s_v_web_id": verifyFp,
             }
 
     def get_bytes(self, **kwargs) -> bytes:
